@@ -21,8 +21,8 @@ import (
 
 type application struct {
 	logger         *slog.Logger
-	snippets       *models.SnippetModel
-	users          *models.UserModel
+	snippets       models.SnippetModelInterface
+	users          models.UserModelInterface
 	templateCache  map[string]*template.Template
 	formDecoder    *form.Decoder
 	sessionManager *scs.SessionManager
@@ -59,6 +59,7 @@ func main() {
 	formDecoder := form.NewDecoder()
 
 	sessionManager := scs.New()
+	sessionManager.Cookie.SameSite = http.SameSiteStrictMode
 	sessionManager.Store = mysqlstore.New(db)
 	sessionManager.Lifetime = 12 * time.Hour
 
@@ -72,6 +73,7 @@ func main() {
 	}
 
 	tlsConfig := &tls.Config{
+		MinVersion:       tls.VersionTLS13,
 		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
 	}
 

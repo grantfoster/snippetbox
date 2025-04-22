@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io/fs"
 	"path/filepath"
 	"text/template"
 	"time"
+
+	"github.com/grantfoster/snippetbox/ui"
 
 	"github.com/grantfoster/snippetbox/internal/models"
 )
@@ -13,15 +16,21 @@ import (
 // At the moment it only contains one field, but we'll add more
 // to it as the build progresses.
 type templateData struct {
-	CurrentYear int
-	Snippet     models.Snippet
-	Snippets    []models.Snippet
-	Form        any
-	Flash       string
+	CurrentYear     int
+	Snippet         models.Snippet
+	Snippets        []models.Snippet
+	Form            any
+	Flash           string
+	IsAuthenticated bool
+	CSRFToken       string
 }
 
 func humanDate(t time.Time) string {
-	return t.Format("02 Jan 2006 at 15:04")
+	if t.IsZero() {
+		return ""
+	}
+
+	return t.UTC().Format("02 Jan 2006 at 15:04")
 }
 
 var functions = template.FuncMap{
@@ -35,7 +44,7 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	// match the pattern "./ui/html/pages/*.tmpl". This will essentially gives
 	// us a slice of all the filepaths for our application 'page' templates
 	// like: [ui/html/pages/home.tmpl ui/html/pages/view.tmpl]
-	pages, err := filepath.Glob("./ui/html/pages/*.tmpl")
+	pages, err := fs.Glob(ui.Files, "html/pages/*.tmpl")
 	if err != nil {
 		return nil, err
 	}
@@ -43,14 +52,14 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	for _, page := range pages {
 		name := filepath.Base(page)
 
-		// parse the files into a template set
-		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl", page)
-		if err != nil {
-			return nil, err
+		patterns := []string{
+			"html/base.tmpl",
+			"html/partials/*.tmpl",
+			page,
 		}
 
-		// Call ParseGlob() *on this template set* to add any partials.
-		ts, err = ts.ParseGlob("./ui/html/partials/*.tmpl")
+		// parse the files into a template set
+		ts, err := template.New(name).Funcs(functions).ParseFS(ui.Files, patterns...)
 		if err != nil {
 			return nil, err
 		}

@@ -43,6 +43,11 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, http.StatusOK, "home.tmpl", data)
 }
 
+func (app *application) about(w http.ResponseWriter, r *http.Request) {
+	data := app.newTemplateData(r)
+	app.render(w, r, http.StatusOK, "about.tmpl", data)
+}
+
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || id < 1 {
@@ -198,11 +203,30 @@ func (app *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.sessionManager.Put(r.Context(), "authenticatedUserId", id)
+	app.sessionManager.Put(r.Context(), "authenticatedUserID", id)
+
+	app.logger.Info("context for user id has been set", "id", id)
 
 	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
 }
 
 func (app *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Lougout the user...")
+	err := app.sessionManager.RenewToken(r.Context())
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	app.sessionManager.Remove(r.Context(), "authenticatedUserID")
+
+	app.sessionManager.Put(r.Context(), "flash", "You have been logged out successfully!")
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func ping(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte("pong"))
+	if err != nil {
+		return
+	}
 }
