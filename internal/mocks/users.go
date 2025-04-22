@@ -39,11 +39,21 @@ func (m *UserModel) Exists(id int) (bool, error) {
 	}
 }
 
-func (m *UserModel) Get(id int) (models.User, error) {
+func (m *UserModel) Get(id int) (*models.User, error) {
 	switch id {
 	case 1:
-		return mockUser, nil
+		return &mockUser, nil
 	default:
-		return models.User{}, models.ErrNoRecord
+		return &models.User{}, models.ErrNoRecord
 	}
+}
+
+func (m *UserModel) PasswordUpdate(id int, currentPassword, newPassword string) error {
+	if id == 1 {
+		if currentPassword != "pa$$word" {
+			return models.ErrInvalidCredentials
+		}
+		return nil
+	}
+	return models.ErrNoRecord
 }
