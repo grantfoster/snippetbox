@@ -207,7 +207,15 @@ func (app *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	app.logger.Info("context for user id has been set", "id", id)
 
-	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
+	redirectTarget, ok := app.sessionManager.Get(r.Context(), "redirect_target").(string)
+	if !ok {
+		http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
+		return
+	}
+
+	app.sessionManager.Remove(r.Context(), "redirect_target")
+	http.Redirect(w, r, redirectTarget, http.StatusSeeOther)
+
 }
 
 func (app *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
@@ -229,4 +237,23 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+}
+
+func (app *application) accountView(w http.ResponseWriter, r *http.Request) {
+	// get the authenticatedUserId from the session
+	authenticatedUserID, ok := app.sessionManager.Get(r.Context(), "authenticatedUserID").(int)
+	if !ok {
+		app.clientError(w, http.StatusUnauthorized)
+		return
+	}
+
+	u, err := app.users.Get(authenticatedUserID)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	data := app.newTemplateData(r)
+	data.User = *u
+	app.render(w, r, http.StatusOK, "account.tmpl", data)
 }
